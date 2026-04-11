@@ -3,74 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Audit QC Kopi</title>
+    <title>Quality Control System</title>
     <style>
-        body { text-align: center; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 450px; margin: 0 auto; }
-        .kamera-container { position: relative; width: 100%; border-radius: 10px; overflow: hidden; background: #000; margin-top: 15px; }
-        video, img#preview-foto { width: 100%; display: block; }
-        .hidden { display: none !important; }
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #16a34a;
+            --danger: #dc2626;
+        }
+
+        body { 
+            font-family: 'Inter', -apple-system, sans-serif; 
+            background: var(--bg); 
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 420px;
+            background: var(--card);
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            border: 1px solid var(--border);
+        }
+
+        .header {
+            text-align: left;
+            margin-bottom: 24px;
+            border-bottom: 2px solid var(--bg);
+            padding-bottom: 16px;
+        }
+
+        h2 { font-size: 1.25rem; font-weight: 700; margin: 0; letter-spacing: -0.025em; }
         
-        /* UI Info */
-        .step-info { background: #e7f3ff; color: #0056b3; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9em; }
-        .kategori-label { font-size: 1.2em; font-weight: bold; color: #333; margin-bottom: 5px; display: block; }
-        .objek-label { font-size: 1em; color: #666; margin-bottom: 10px; display: block; }
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
 
-        /* Buttons */
-        .btn-group { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
-        button { padding: 16px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        #btn-jepret { background: #007bff; color: white; }
-        #btn-kirim { background: #28a745; color: white; }
-        #btn-ulang { background: #6c757d; color: white; }
-        button:disabled { background: #ccc !important; }
+        .kategori-section { margin-bottom: 20px; }
+        .kategori-title { font-size: 0.875rem; color: var(--primary); font-weight: 600; text-transform: uppercase; }
+        .objek-title { font-size: 1.125rem; font-weight: 500; margin-top: 4px; display: block; }
 
-        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; font-weight: bold; }
+        .viewport {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        video, img#preview-foto { width: 100%; height: 100%; object-fit: cover; }
+        .hidden { display: none !important; }
+
+        .btn-stack { display: flex; flex-direction: column; gap: 12px; }
+
+        button {
+            padding: 14px;
+            font-size: 0.938rem;
+            font-weight: 600;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        #btn-jepret { background: var(--text-main); color: white; }
+        #btn-jepret:active { transform: scale(0.98); }
+
+        #btn-kirim { background: var(--success); color: white; }
+        #btn-ulang { background: white; color: var(--text-muted); border: 1px solid var(--border); }
+
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(4px);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 1000; font-size: 0.875rem; font-weight: 600;
+        }
+
+        .progress-pill {
+            background: var(--bg);
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
 
-    <div id="loading-overlay" class="hidden">
-        <p>Sedang Mengirim Data...</p>
-    </div>
+    <div id="loading-overlay" class="hidden">MEMPROSES DATA...</div>
 
-    <div class="card">
-        <div class="step-info">
-            <span id="progess-text">Memuat Audit...</span>
+    <div class="container">
+        <div class="header">
+            <h2>Audit Operasional</h2>
+            <div class="status-bar">
+                <span id="gps-status">Mencari Koordinat...</span>
+                <span id="progress-text" class="progress-pill">0/0</span>
+            </div>
         </div>
 
-        <span id="label-kategori" class="kategori-label">-</span>
-        <span id="label-objek" class="objek-label">-</span>
+        <div class="kategori-section">
+            <span id="label-kategori" class="kategori-title">Inisialisasi</span>
+            <span id="label-objek" class="objek-title">Mohon Tunggu</span>
+        </div>
 
-        <div class="kamera-container">
+        <div class="viewport">
             <video id="kamera" autoplay playsinline></video>
             <img id="preview-foto" class="hidden">
         </div>
 
-        <div class="btn-group">
-            <button id="btn-jepret" disabled>Tunggu GPS...</button>
-            <button id="btn-kirim" class="hidden">✅ Foto Jelas, Kirim</button>
-            <button id="btn-ulang" class="hidden">🔄 Foto Buram, Ulang</button>
+        <div class="btn-stack">
+            <button id="btn-jepret" disabled>AMBIL FOTO</button>
+            <button id="btn-kirim" class="hidden">KONFIRMASI DAN KIRIM</button>
+            <button id="btn-ulang" class="hidden">AMBIL ULANG</button>
         </div>
     </div>
 
     <canvas id="kanvas" style="display:none;"></canvas>
 
     <script>
-        // DAFTAR TUGAS AUDIT (KATEGORI & OBJEK)
         const daftarAudit = [
             { kat: "Area Bar & Kasir", obj: "Drip Tray Mesin Espresso" },
-            { kat: "Area Bar & Kasir", obj: "Steam Wand (Pipa Susu)" },
+            { kat: "Area Bar & Kasir", obj: "Steam Wand" },
             { kat: "Area Bar & Kasir", obj: "Meja Area Grinder" },
-            { kat: "Area Bar & Kasir", obj: "Showcase / Etalase Makanan" },
-            { kat: "Area Bar & Kasir", obj: "Laci Kasir (Kerapian Uang)" },
-            { kat: "Area Bar & Kasir", obj: "Nota Kasir (OCR Total)" },
-            { kat: "Area FOH", obj: "Kebersihan Meja Pelanggan" },
-            { kat: "Area FOH", obj: "Kebersihan Lantai Pelanggan" },
-            { kat: "Area FOH", obj: "Standing Banner Promo" },
-            { kat: "Area FOH", obj: "Plang Nama Toko (Fasad)" },
-            { kat: "Area BOH", obj: "Wastafel / Sink (Cucian)" },
-            { kat: "Area BOH", obj: "Termometer Kulkas (OCR Suhu)" },
-            { kat: "Area BOH", obj: "Rak Gudang (Penyimpanan)" },
+            { kat: "Area Bar & Kasir", obj: "Showcase Makanan" },
+            { kat: "Area Bar & Kasir", obj: "Laci Kasir" },
+            { kat: "Area Bar & Kasir", obj: "Nota Kasir" },
+            { kat: "Area FOH", obj: "Meja Pelanggan" },
+            { kat: "Area FOH", obj: "Lantai Pelanggan" },
+            { kat: "Area FOH", obj: "Standing Banner" },
+            { kat: "Area FOH", obj: "Plang Nama Toko" },
+            { kat: "Area BOH", obj: "Wastafel" },
+            { kat: "Area BOH", obj: "Termometer Kulkas" },
+            { kat: "Area BOH", obj: "Rak Gudang" },
             { kat: "Area Fasilitas Umum", obj: "Kebersihan Toilet" },
             { kat: "Area Fasilitas Umum", obj: "Kondisi Tempat Sampah" }
         ];
@@ -87,7 +170,8 @@
         const btnUlang = document.getElementById('btn-ulang');
         const labelKategori = document.getElementById('label-kategori');
         const labelObjek = document.getElementById('label-objek');
-        const progressText = document.getElementById('progess-text');
+        const progressText = document.getElementById('progress-text');
+        const gpsStatus = document.getElementById('gps-status');
         const loadingOverlay = document.getElementById('loading-overlay');
 
         function updateUI() {
@@ -95,27 +179,29 @@
                 const item = daftarAudit[indexSekarang];
                 labelKategori.innerText = item.kat;
                 labelObjek.innerText = item.obj;
-                progressText.innerText = `Tugas ${indexSekarang + 1} dari ${daftarAudit.length}`;
+                progressText.innerText = `${indexSekarang + 1}/${daftarAudit.length}`;
             } else {
-                alert("🎉 Semua tugas audit hari ini selesai!");
+                alert("Audit Selesai.");
                 window.location.reload();
             }
         }
 
-        // Inisialisasi GPS
         navigator.geolocation.getCurrentPosition((pos) => {
             dataLokasi.lat = pos.coords.latitude;
             dataLokasi.lon = pos.coords.longitude;
+            gpsStatus.innerText = "GPS Aktif";
             updateUI();
             nyalakanKamera();
-        }, () => alert("GPS Wajib Aktif!"), { enableHighAccuracy: true });
+        }, () => {
+            gpsStatus.innerText = "GPS Error";
+            alert("Akses lokasi diperlukan.");
+        }, { enableHighAccuracy: true });
 
         function nyalakanKamera() {
             navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
                 .then(stream => {
                     kamera.srcObject = stream;
                     btnJepret.disabled = false;
-                    btnJepret.innerText = "📸 Ambil Foto";
                 });
         }
 
@@ -123,7 +209,7 @@
             kanvas.width = kamera.videoWidth;
             kanvas.height = kamera.videoHeight;
             kanvas.getContext('2d').drawImage(kamera, 0, 0);
-            fotoTerjepretBase64 = kanvas.toDataURL('image/jpeg', 0.7);
+            fotoTerjepretBase64 = kanvas.toDataURL('image/jpeg', 0.8);
             previewFoto.src = fotoTerjepretBase64;
             
             kamera.classList.add('hidden');
@@ -145,9 +231,12 @@
             loadingOverlay.classList.remove('hidden');
             const item = daftarAudit[indexSekarang];
             
-            fetch('https://pete-chromatophoric-laverne.ngrok-free.dev/webhook/qc-kopi', {
+            fetch('https://pete-chromatophoric-laverne.ngrok-free.dev/webhook-test/qc-kopi', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true' 
+                },
                 body: JSON.stringify({
                     foto: fotoTerjepretBase64,
                     kategori: item.kat,
@@ -162,7 +251,7 @@
                 updateUI();
                 loadingOverlay.classList.add('hidden');
             }).catch(() => {
-                alert("Gagal kirim!");
+                alert("Gagal mengirim data.");
                 loadingOverlay.classList.add('hidden');
             });
         };
