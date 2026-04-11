@@ -145,7 +145,7 @@
             loadingOverlay.classList.remove('hidden');
             const item = daftarAudit[indexSekarang];
             
-            fetch('https://pete-chromatophoric-laverne.ngrok-free.dev/webhook-test/qc-kopi', {
+            fetch('https://pete-chromatophoric-laverne.ngrok-free.dev/webhook/qc-kopi', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
                 body: JSON.stringify({
