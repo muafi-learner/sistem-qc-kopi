@@ -3,21 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kamera QC Harian</title>
+    <title>Kamera QC Otomatis</title>
     <style>
         body { text-align: center; font-family: sans-serif; background: #f4f4f4; padding: 20px; }
         video { width: 100%; max-width: 400px; border-radius: 8px; background: #000; }
         button { margin-top: 20px; padding: 15px 30px; font-size: 18px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; max-width: 400px; font-weight: bold;}
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #status-teks { font-weight: bold; margin-bottom: 15px; color: #333; }
     </style>
 </head>
 <body>
 
-    <h2>Audit QC</h2>
-    <p id="info-cabang">Memuat data lokasi...</p>
+    <h2>Audit QC Harian</h2>
+    <p id="status-teks">Mencari lokasi GPS...</p>
 
     <video id="kamera" autoplay playsinline></video>
     
-    <button id="btn-jepret">Jepret & Kirim</button>
+    <button id="btn-jepret" disabled>Mohon Tunggu...</button>
 
     <canvas id="kanvas" style="display:none;"></canvas>
 
@@ -25,59 +27,93 @@
         const kamera = document.getElementById('kamera');
         const kanvas = document.getElementById('kanvas');
         const btnJepret = document.getElementById('btn-jepret');
-        const infoCabang = document.getElementById('info-cabang');
+        const statusTeks = document.getElementById('status-teks');
 
-        // 1. Ambil Parameter dari URL (Contoh: ?cabang=Tulungagung-1&shift=Pagi)
-        const urlParams = new URLSearchParams(window.location.search);
-        const cabang = urlParams.get('cabang') || 'Cabang Tidak Diketahui';
-        const shift = urlParams.get('shift') || 'Shift Tidak Diketahui';
-        
-        infoCabang.innerText = `Lokasi: ${cabang} | Shift: ${shift}`;
+        let dataLokasi = { lat: null, lon: null };
+        let dataShift = "Tidak Diketahui";
 
-        // 2. Akses Kamera Belakang (Environment)
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-            .then(stream => {
-                kamera.srcObject = stream;
-            })
-            .catch(err => {
-                alert("Akses kamera ditolak atau tidak tersedia.");
-                console.error(err);
-            });
+        // 1. Fungsi Menentukan Shift berdasarkan Jam HP
+        function tentukanShift() {
+            const jamSekarang = new Date().getHours();
+            if (jamSekarang >= 6 && jamSekarang < 15) {
+                return "Pagi";
+            } else if (jamSekarang >= 15 && jamSekarang < 23) {
+                return "Siang/Malam";
+            } else {
+                return "Closing/Lembur";
+            }
+        }
 
-        // 3. Proses saat tombol jepret ditekan
+        // 2. Minta Akses Lokasi GPS (Browser Geolocation)
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (posisi) => {
+                    dataLokasi.lat = posisi.coords.latitude;
+                    dataLokasi.lon = posisi.coords.longitude;
+                    dataShift = tentukanShift();
+                    
+                    statusTeks.innerText = `GPS Terkunci | Shift: ${dataShift}`;
+                    statusTeks.style.color = "green";
+                    
+                    // Nyalakan Kamera setelah GPS dapat
+                    nyalakanKamera();
+                },
+                (error) => {
+                    statusTeks.innerText = "Akses GPS Ditolak! Harap izinkan lokasi.";
+                    statusTeks.style.color = "red";
+                    alert("Sistem membutuhkan akses lokasi untuk verifikasi cabang.");
+                },
+                { enableHighAccuracy: true } // Paksa cari GPS paling akurat
+            );
+        } else {
+            statusTeks.innerText = "Browser tidak mendukung GPS.";
+        }
+
+        // 3. Fungsi Menyalakan Kamera
+        function nyalakanKamera() {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                .then(stream => {
+                    kamera.srcObject = stream;
+                    btnJepret.innerText = "Jepret & Kirim";
+                    btnJepret.disabled = false; // Aktifkan tombol
+                })
+                .catch(err => {
+                    alert("Akses kamera ditolak.");
+                });
+        }
+
+        // 4. Proses Jepret dan Kirim
         btnJepret.addEventListener('click', () => {
             btnJepret.innerText = "Mengirim...";
             btnJepret.disabled = true;
 
-            // Gambar frame video saat ini ke dalam kanvas
             kanvas.width = kamera.videoWidth;
             kanvas.height = kamera.videoHeight;
             kanvas.getContext('2d').drawImage(kamera, 0, 0);
 
-            // Ubah gambar di kanvas menjadi format teks Base64 (JPEG kualitas 80%)
             const fotoBase64 = kanvas.toDataURL('image/jpeg', 0.8);
 
-            // 4. Kirim Data ke Webhook n8n
-            // GANTI URL DI BAWAH DENGAN TEST URL WEBHOOK N8N KAMU
-            const n8nWebhookUrl = 'https://pete-chromatophoric-laverne.ngrok-free.dev/webhook-test/qc-kopi';
+            // GANTI DENGAN URL NGROK/N8N KAMU
+            const n8nWebhookUrl = 'https://pete-chromatophoric-laverne.ngrok-free.dev/webhook-test/qc-kopi'; 
 
             fetch(n8nWebhookUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     foto: fotoBase64,
-                    cabang: cabang,
-                    shift: shift,
+                    latitude: dataLokasi.lat,
+                    longitude: dataLokasi.lon,
+                    shift: dataShift,
                     waktu_upload: new Date().toISOString()
                 })
             })
-            .then(response => {
+            .then(() => {
                 alert("Foto QC berhasil dikirim!");
                 btnJepret.innerText = "Jepret & Kirim";
                 btnJepret.disabled = false;
             })
-            .catch(error => {
-                alert("Gagal mengirim foto. Cek koneksi internet.");
+            .catch(() => {
+                alert("Gagal mengirim. Cek koneksi internet.");
                 btnJepret.innerText = "Jepret & Kirim";
                 btnJepret.disabled = false;
             });
