@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kamera QC Harian</title>
+    <style>
+        body { text-align: center; font-family: sans-serif; background: #f4f4f4; padding: 20px; }
+        video { width: 100%; max-width: 400px; border-radius: 8px; background: #000; }
+        button { margin-top: 20px; padding: 15px 30px; font-size: 18px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; max-width: 400px; font-weight: bold;}
+    </style>
+</head>
+<body>
+
+    <h2>Audit QC</h2>
+    <p id="info-cabang">Memuat data lokasi...</p>
+
+    <video id="kamera" autoplay playsinline></video>
+    
+    <button id="btn-jepret">Jepret & Kirim</button>
+
+    <canvas id="kanvas" style="display:none;"></canvas>
+
+    <script>
+        const kamera = document.getElementById('kamera');
+        const kanvas = document.getElementById('kanvas');
+        const btnJepret = document.getElementById('btn-jepret');
+        const infoCabang = document.getElementById('info-cabang');
+
+        // 1. Ambil Parameter dari URL (Contoh: ?cabang=Tulungagung-1&shift=Pagi)
+        const urlParams = new URLSearchParams(window.location.search);
+        const cabang = urlParams.get('cabang') || 'Cabang Tidak Diketahui';
+        const shift = urlParams.get('shift') || 'Shift Tidak Diketahui';
+        
+        infoCabang.innerText = `Lokasi: ${cabang} | Shift: ${shift}`;
+
+        // 2. Akses Kamera Belakang (Environment)
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(stream => {
+                kamera.srcObject = stream;
+            })
+            .catch(err => {
+                alert("Akses kamera ditolak atau tidak tersedia.");
+                console.error(err);
+            });
+
+        // 3. Proses saat tombol jepret ditekan
+        btnJepret.addEventListener('click', () => {
+            btnJepret.innerText = "Mengirim...";
+            btnJepret.disabled = true;
+
+            // Gambar frame video saat ini ke dalam kanvas
+            kanvas.width = kamera.videoWidth;
+            kanvas.height = kamera.videoHeight;
+            kanvas.getContext('2d').drawImage(kamera, 0, 0);
+
+            // Ubah gambar di kanvas menjadi format teks Base64 (JPEG kualitas 80%)
+            const fotoBase64 = kanvas.toDataURL('image/jpeg', 0.8);
+
+            // 4. Kirim Data ke Webhook n8n
+            // GANTI URL DI BAWAH DENGAN TEST URL WEBHOOK N8N KAMU
+            const n8nWebhookUrl = 'https://URL_WEBHOOK_N8N_KAMU_DI_SINI'; 
+
+            fetch(n8nWebhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    foto: fotoBase64,
+                    cabang: cabang,
+                    shift: shift,
+                    waktu_upload: new Date().toISOString()
+                })
+            })
+            .then(response => {
+                alert("Foto QC berhasil dikirim!");
+                btnJepret.innerText = "Jepret & Kirim";
+                btnJepret.disabled = false;
+            })
+            .catch(error => {
+                alert("Gagal mengirim foto. Cek koneksi internet.");
+                btnJepret.innerText = "Jepret & Kirim";
+                btnJepret.disabled = false;
+            });
+        });
+    </script>
+</body>
+</html>
