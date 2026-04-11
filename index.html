@@ -32,7 +32,14 @@
         let dataLokasi = { lat: null, lon: null };
         let dataShift = "Tidak Diketahui";
 
-        // 1. Fungsi Menentukan Shift berdasarkan Jam HP
+        // Fungsi untuk membuat timestamp dengan zona waktu Asia/Jakarta (+07:00)
+        function getWaktuJakarta() {
+            const sekarang = new Date();
+            const jakartaTime = new Date(sekarang.getTime() + (7 * 60 * 60 * 1000));
+            return jakartaTime.toISOString().replace('Z', '+07:00');
+        }
+
+        // Fungsi Menentukan Shift berdasarkan Jam HP
         function tentukanShift() {
             const jamSekarang = new Date().getHours();
             if (jamSekarang >= 6 && jamSekarang < 15) {
@@ -44,7 +51,7 @@
             }
         }
 
-        // 2. Minta Akses Lokasi GPS (Browser Geolocation)
+        // Minta Akses Lokasi GPS
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (posisi) => {
@@ -55,7 +62,6 @@
                     statusTeks.innerText = `GPS Terkunci | Shift: ${dataShift}`;
                     statusTeks.style.color = "green";
                     
-                    // Nyalakan Kamera setelah GPS dapat
                     nyalakanKamera();
                 },
                 (error) => {
@@ -63,26 +69,26 @@
                     statusTeks.style.color = "red";
                     alert("Sistem membutuhkan akses lokasi untuk verifikasi cabang.");
                 },
-                { enableHighAccuracy: true } // Paksa cari GPS paling akurat
+                { enableHighAccuracy: true }
             );
         } else {
             statusTeks.innerText = "Browser tidak mendukung GPS.";
         }
 
-        // 3. Fungsi Menyalakan Kamera
+        // Fungsi Menyalakan Kamera
         function nyalakanKamera() {
             navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
                 .then(stream => {
                     kamera.srcObject = stream;
                     btnJepret.innerText = "Jepret & Kirim";
-                    btnJepret.disabled = false; // Aktifkan tombol
+                    btnJepret.disabled = false;
                 })
                 .catch(err => {
                     alert("Akses kamera ditolak.");
                 });
         }
 
-        // 4. Proses Jepret dan Kirim
+        // Proses Jepret dan Kirim
         btnJepret.addEventListener('click', () => {
             btnJepret.innerText = "Mengirim...";
             btnJepret.disabled = true;
@@ -93,27 +99,35 @@
 
             const fotoBase64 = kanvas.toDataURL('image/jpeg', 0.8);
 
-            // GANTI DENGAN URL NGROK/N8N KAMU
+            // URL Webhook n8n
             const n8nWebhookUrl = 'https://pete-chromatophoric-laverne.ngrok-free.dev/webhook-test/qc-kopi'; 
 
+            // Kirim data ke n8n
             fetch(n8nWebhookUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true' // Bypass blokir ngrok
+                },
                 body: JSON.stringify({
                     foto: fotoBase64,
                     latitude: dataLokasi.lat,
                     longitude: dataLokasi.lon,
                     shift: dataShift,
-                    waktu_upload: new Date().toISOString()
+                    waktu_upload: getWaktuJakarta() // Menggunakan Waktu Jakarta
                 })
             })
-            .then(() => {
-                alert("Foto QC berhasil dikirim!");
+            .then(response => {
+                if (response.ok) {
+                    alert("Foto QC berhasil dikirim!");
+                } else {
+                    alert("Data terkirim, tapi n8n memberikan respon error.");
+                }
                 btnJepret.innerText = "Jepret & Kirim";
                 btnJepret.disabled = false;
             })
-            .catch(() => {
-                alert("Gagal mengirim. Cek koneksi internet.");
+            .catch(error => {
+                alert("Gagal mengirim. Cek koneksi internet atau status n8n.");
                 btnJepret.innerText = "Jepret & Kirim";
                 btnJepret.disabled = false;
             });
