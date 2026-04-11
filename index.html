@@ -105,13 +105,21 @@
             border-radius: 999px;
             font-weight: 600;
         }
+
+        /* Lockout Style */
+        .lockout-message {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .lockout-message h1 { font-size: 1.5rem; color: var(--text-main); }
+        .lockout-message p { color: var(--text-muted); font-size: 0.9rem; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <div id="loading-overlay" class="hidden">MEMPROSES DATA...</div>
 
-    <div class="container">
+    <div id="main-app" class="container">
         <div class="header">
             <h2>Audit Operasional</h2>
             <div class="status-bar">
@@ -137,9 +145,20 @@
         </div>
     </div>
 
+    <div id="lockout-screen" class="container hidden">
+        <div class="lockout-message">
+            <h1>Audit Selesai</h1>
+            <p>Laporan QC hari ini telah terkirim. Akses akan dibuka kembali besok pagi.</p>
+            <div style="margin-top: 30px; padding: 10px; border-top: 1px solid var(--border); font-size: 0.7rem; color: var(--text-muted);">
+                SISTEM VERIFIKASI HARIAN
+            </div>
+        </div>
+    </div>
+
     <canvas id="kanvas" style="display:none;"></canvas>
 
     <script>
+        // DAFTAR AUDIT SESUAI KATEGORI
         const daftarAudit = [
             { kat: "Area Bar & Kasir", obj: "Drip Tray Mesin Espresso" },
             { kat: "Area Bar & Kasir", obj: "Steam Wand" },
@@ -162,6 +181,8 @@
         let dataLokasi = { lat: null, lon: null };
         let fotoTerjepretBase64 = null;
 
+        const mainApp = document.getElementById('main-app');
+        const lockoutScreen = document.getElementById('lockout-screen');
         const kamera = document.getElementById('kamera');
         const previewFoto = document.getElementById('preview-foto');
         const kanvas = document.getElementById('kanvas');
@@ -174,6 +195,19 @@
         const gpsStatus = document.getElementById('gps-status');
         const loadingOverlay = document.getElementById('loading-overlay');
 
+        // LOGIKA LOCKOUT HARIAN
+        function checkDailyLock() {
+            const lastAuditDate = localStorage.getItem('last_audit_date');
+            const today = new Date().toDateString();
+
+            if (lastAuditDate === today) {
+                mainApp.classList.add('hidden');
+                lockoutScreen.classList.remove('hidden');
+                return true;
+            }
+            return false;
+        }
+
         function updateUI() {
             if (indexSekarang < daftarAudit.length) {
                 const item = daftarAudit[indexSekarang];
@@ -181,21 +215,25 @@
                 labelObjek.innerText = item.obj;
                 progressText.innerText = `${indexSekarang + 1}/${daftarAudit.length}`;
             } else {
-                alert("Audit Selesai.");
-                window.location.reload();
+                // SET LOCKOUT SETELAH SELESAI
+                localStorage.setItem('last_audit_date', new Date().toDateString());
+                location.reload(); 
             }
         }
 
-        navigator.geolocation.getCurrentPosition((pos) => {
-            dataLokasi.lat = pos.coords.latitude;
-            dataLokasi.lon = pos.coords.longitude;
-            gpsStatus.innerText = "GPS Aktif";
-            updateUI();
-            nyalakanKamera();
-        }, () => {
-            gpsStatus.innerText = "GPS Error";
-            alert("Akses lokasi diperlukan.");
-        }, { enableHighAccuracy: true });
+        // INIT SISTEM
+        if (!checkDailyLock()) {
+            navigator.geolocation.getCurrentPosition((pos) => {
+                dataLokasi.lat = pos.coords.latitude;
+                dataLokasi.lon = pos.coords.longitude;
+                gpsStatus.innerText = "GPS AKTIF";
+                updateUI();
+                nyalakanKamera();
+            }, () => {
+                gpsStatus.innerText = "GPS ERROR";
+                alert("Akses lokasi diperlukan untuk audit.");
+            }, { enableHighAccuracy: true });
+        }
 
         function nyalakanKamera() {
             navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
@@ -211,7 +249,6 @@
             kanvas.getContext('2d').drawImage(kamera, 0, 0);
             fotoTerjepretBase64 = kanvas.toDataURL('image/jpeg', 0.8);
             previewFoto.src = fotoTerjepretBase64;
-            
             kamera.classList.add('hidden');
             previewFoto.classList.remove('hidden');
             btnJepret.classList.add('hidden');
@@ -251,7 +288,7 @@
                 updateUI();
                 loadingOverlay.classList.add('hidden');
             }).catch(() => {
-                alert("Gagal mengirim data.");
+                alert("Gagal mengirim. Periksa koneksi.");
                 loadingOverlay.classList.add('hidden');
             });
         };
