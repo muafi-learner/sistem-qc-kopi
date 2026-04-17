@@ -280,7 +280,8 @@
                     objek: item.obj,
                     latitude: dataLokasi.lat,
                     longitude: dataLokasi.lon,
-                    waktu: new Date().toISOString()
+                    // Kode waktu yang sudah diperbarui ke WIB
+                    waktu: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Jakarta' }).replace(' ', 'T') + '+07:00'
                 })
             }).then(() => {
                 indexSekarang++;
